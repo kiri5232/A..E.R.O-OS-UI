@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A.E.R.O. Neural Core Interface</title>
+  <style>
+    :root {
+      --primary-color: #00ff66;
+      --bg-color: #030a05;
+      --panel-bg: rgba(5, 20, 10, 0.75);
+      --border-color: rgba(0, 255, 102, 0.35);
+      --glow-shadow: 0 0 25px rgba(0, 255, 102, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--primary-color);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      transition: background-color 0.4s ease, color 0.4s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ambient-glow {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at center, transparent 20%, var(--primary-color));
+      opacity: 0.12;
+      pointer-events: none;
+      transition: background 0.5s ease;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 30px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.6);
+      box-shadow: var(--glow-shadow);
+      z-index: 10;
+    }
+
+    .system-title {
+      font-size: 1.4rem;
+      font-weight: bold;
+      letter-spacing: 3px;
+      text-shadow: 0 0 10px var(--primary-color);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .mic-btn {
+      background: transparent;
+      border: 1px solid var(--primary-color);
+      color: var(--primary-color);
+      padding: 6px 14px;
+      cursor: pointer;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border-radius: 4px;
+      box-shadow: inset 0 0 8px var(--primary-color);
+      transition: all 0.3s ease;
+    }
+
+    .mic-btn:hover {
+      background: var(--primary-color);
+      color: #000;
+    }
+
+    .status-badge {
+      padding: 6px 14px;
+      border: 1px solid var(--primary-color);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      box-shadow: inset 0 0 8px var(--primary-color);
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 320px 1fr 320px;
+      gap: 20px;
+      padding: 20px;
+      height: calc(100vh - 65px);
+      z-index: 5;
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--glow-shadow);
+      backdrop-filter: blur(6px);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      font-size: 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      letter-spacing: 1.5px;
+      font-weight: bold;
+    }
+
+    .code-terminal {
+      font-size: 0.8rem;
+      line-height: 1.4;
+      overflow-y: hidden;
+      white-space: pre-wrap;
+      color: var(--primary-color);
+      opacity: 0.85;
+      height: 100%;
+    }
+
+    .visualizer-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    canvas#aeroCanvas {
+      width: 100%;
+      height: 100%;
+      max-width: 500px;
+      max-height: 500px;
+    }
+
+    .log-stream {
+      flex-grow: 1;
+      font-size: 0.8rem;
+      overflow-y: auto;
+      margin-bottom: 15px;
+    }
+
+    .log-entry {
+      margin-bottom: 8px;
+      opacity: 0.85;
+    }
+
+    .shortcut-guide {
+      font-size: 0.75rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 10px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .glitch {
+      animation: glitchAnim 0.15s infinite;
+    }
+
+    @keyframes glitchAnim {
+      0% { transform: translate(0); }
+      20% { transform: translate(-3px, 2px); }
+      40% { transform: translate(-2px, -3px); }
+      60% { transform: translate(3px, 1px); }
+      80% { transform: translate(1px, -2px); }
+      100% { transform: translate(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow"></div>
+
+  <header>
+    <div class="system-title">A.E.R.O. // SYSTEM CORE</div>
+    <div class="header-actions">
+      <button class="mic-btn" id="micBtn" onclick="initAudio()">🎙 START MIC REACTIVITY</button>
+      <div class="status-badge" id="statusBadge">MODE: NORMAL (GREEN)</div>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <!-- Left: Coding Terminal Panel -->
+    <div class="panel">
+      <div class="panel-header">// REALTIME CODE STREAM</div>
+      <div class="code-terminal" id="codeTerminal"></div>
+    </div>
+
+    <!-- Center: Heavy 3D Aura Orb -->
+    <div class="panel visualizer-container" id="visualizerPanel">
+      <canvas id="aeroCanvas" width="500" height="500"></canvas>
+    </div>
+
+    <!-- Right: Logs & Controls -->
+    <div class="panel">
+      <div class="panel-header">// SYSTEM LOGS</div>
+      <div class="log-stream" id="logStream">
+        <div class="log-entry">> A.E.R.O. Heavy Aura Core Online...</div>
+        <div class="log-entry">> Mic Audio Analyzer Ready...</div>
+        <div class="log-entry">> Awaiting Keyboard Hotkeys [1-5]...</div>
+      </div>
+
+      <div class="shortcut-guide">
+        <div class="panel-header" style="margin-bottom:8px; border:none;">// MOOD KEYS</div>
+        <div class="shortcut-item"><span>[1] Normal / Matrix</span><span>Green</span></div>
+        <div class="shortcut-item"><span>[2] Angry / Roast</span><span>Red</span></div>
+        <div class="shortcut-item"><span>[3] Thinking</span><span>Yellow</span></div>
+        <div class="shortcut-item"><span>[4] Sarcastic</span><span>Purple</span></div>
+        <div class="shortcut-item"><span>[5] Calm Mode</span><span>Neon Blue</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. Fake Code Stream ---
+    const codeLines = [
+      "import { AERO_AURA, NEURAL_NET } from 'aero-core';",
+      "const auraLevel = AERO_AURA.getPowerLevel();",
+      "if (auraLevel > 9000) {",
+      "  NEURAL_NET.triggerGlitchResponse('Rayzen Mode');",
+      "}",
+      "async function syncVoiceFrequency(stream) {",
+      "  const analyzer = new AudioContext().createAnalyser();",
+      "  return analyzer.getByteFrequencyData();",
+      "}",
+      "// Injecting neural pulse sequence...",
+      "AERO_AURA.emitParticles({ density: 150, spin: 0.05 });"
+    ];
+
+    const codeTerminal = document.getElementById('codeTerminal');
+    let lineIdx = 0;
+    setInterval(() => {
+      codeTerminal.innerHTML += codeLines[lineIdx % codeLines.length] + "\n";
+      lineIdx++;
+      if (codeTerminal.innerText.split('\n').length > 28) {
+        codeTerminal.innerText = codeTerminal.innerText.split('\n').slice(10).join('\n');
+      }
+    }, 550);
+
+    // --- 2. Heavy Canvas Orb Visualizer ---
+    const canvas = document.getElementById('aeroCanvas');
+    const ctx = canvas.getContext('2d');
+    let currentColor = '#00ff66';
+    let audioLevel = 0; // Dynamic mic level
+
+    let angle = 0;
+    function renderOrb() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      
+      // Dynamic radius scaling with Mic Audio
+      const baseRadius = 80 + (audioLevel * 45);
+
+      // Outer Pulsing Glow Halo
+      const gradient = ctx.createRadialGradient(cx, cy, baseRadius * 0.2, cx, cy, baseRadius * 1.8);
+      gradient.addColorStop(0, currentColor);
+      gradient.addColorStop(0.5, currentColor + '66');
+      gradient.addColorStop(1, 'transparent');
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseRadius * 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Rotating Outer Orbit Ring 1
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, baseRadius * 1.4, baseRadius * 0.5, Math.PI / 4, 0, Math.PI * 2);
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 15]);
+      ctx.stroke();
+      ctx.restore();
+
+      // Rotating Outer Orbit Ring 2 (Opposite direction)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-angle * 1.3);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, baseRadius * 1.3, baseRadius * 0.6, -Math.PI / 3, 0, Math.PI * 2);
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 10]);
+      ctx.stroke();
+      ctx.restore();
+
+      // Core Dense Orb
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseRadius * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = currentColor;
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = currentColor;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Particle Dots around Orb
+      for (let i = 0; i < 12; i++) {
+        const pAngle = angle * 2 + (i * (Math.PI / 6));
+        const dist = baseRadius * 1.1 + Math.sin(angle * 3 + i) * 10;
+        const px = cx + Math.cos(pAngle) * dist;
+        const py = cy + Math.sin(pAngle) * dist;
+
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+      }
+
+      angle += 0.02 + (audioLevel * 0.05);
+      requestAnimationFrame(renderOrb);
+    }
+    renderOrb();
+
+    // --- 3. Web Audio API (Mic Reactivity) ---
+    async function initAudio() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioCtx.createAnalyser();
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 64;
+        
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        document.getElementById('micBtn').innerText = "🎙 MIC ACTIVE";
+        document.getElementById('micBtn').style.borderColor = "#ffffff";
+
+        function updateMicLevel() {
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          let avg = sum / dataArray.length;
+          audioLevel = avg / 255; // Normalize to 0 - 1
+          requestAnimationFrame(updateMicLevel);
+        }
+        updateMicLevel();
+      } catch (err) {
+        alert("Microphone Access Required for Audio Reactivity!");
+      }
+    }
+
+    // --- 4. Mood Switcher Keybinds (1 to 5) ---
+    const moodMap = {
+      '1': { name: 'MODE: NORMAL / MATRIX', color: '#00ff66', bg: '#030a05', panelBg: 'rgba(5, 20, 10, 0.75)', glitch: false },
+      '2': { name: 'MODE: ANGRY / ROAST', color: '#ff1a1a', bg: '#140303', panelBg: 'rgba(30, 5, 5, 0.75)', glitch: true },
+      '3': { name: 'MODE: THINKING', color: '#ffcc00', bg: '#120f02', panelBg: 'rgba(25, 20, 5, 0.75)', glitch: false },
+      '4': { name: 'MODE: SARCASTIC', color: '#d946ef', bg: '#100314', panelBg: 'rgba(25, 5, 30, 0.75)', glitch: false },
+      '5': { name: 'MODE: CALM (NEON BLUE)', color: '#00d9ff', bg: '#020d14', panelBg: 'rgba(5, 20, 30, 0.75)', glitch: false }
+    };
+
+    const root = document.documentElement;
+    const statusBadge = document.getElementById('statusBadge');
+    const logStream = document.getElementById('logStream');
+    const visualizerPanel = document.getElementById('visualizerPanel');
+
+    function switchMood(key) {
+      const mood = moodMap[key];
+      if (!mood) return;
+
+      currentColor = mood.color;
+      root.style.setProperty('--primary-color', mood.color);
+      root.style.setProperty('--bg-color', mood.bg);
+      root.style.setProperty('--panel-bg', mood.panelBg);
+      root.style.setProperty('--border-color', mood.color + '55');
+      root.style.setProperty('--glow-shadow', `0 0 25px ${mood.color}66`);
+
+      statusBadge.innerText = mood.name;
+
+      const log = document.createElement('div');
+      log.className = 'log-entry';
+      log.innerText = `> ${mood.name} Activated.`;
+      logStream.appendChild(log);
+      logStream.scrollTop = logStream.scrollHeight;
+
+      if (mood.glitch) {
+        visualizerPanel.classList.add('glitch');
+      } else {
+        visualizerPanel.classList.remove('glitch');
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (['1', '2', '3', '4', '5'].includes(e.key)) {
+        switchMood(e.key);
+      }
+    });
+  </script>
+</body>
+</html>
